@@ -83,7 +83,7 @@ bool remove_attribute(const std::string& file_name, const DWORD attribute = FILE
 std::vector<path> get_percent_encoding_url_files(const std::vector<path>& files)
 {
     std::vector<path> result;
-    static const boost::regex e("%\\w{2}");
+    static const boost::regex e("[%_][0-9A-F]{2}");
 
     for (const path& file : files)
     {
@@ -102,7 +102,7 @@ std::vector<path> get_percent_encoding_url_files(const std::vector<path>& files)
 std::vector<std::pair<path, path>> rename(const std::vector<path>& files)
 {
     std::vector<std::pair<path, path>> result;
-    static const boost::regex e("%\\w{2}");
+    static const boost::regex e("[%_][0-9A-F]{2}");
 
     for (const path& file : files)
     {
@@ -116,8 +116,17 @@ std::vector<std::pair<path, path>> rename(const std::vector<path>& files)
             std::string s = beg->str();
             std::string s2 = "0x" + s.substr(1);
             size_t x = std::stoul(s2.c_str(), nullptr, 16);
-            //std::cout << std::string(1, (char)x) << std::endl;
-            replaces.push_back(std::make_pair(beg->str(), std::string(1, (char)x)));
+
+            if (boost::is_print()(x))
+            {
+                //std::cout << std::string(1, (char)x) << std::endl;
+                replaces.push_back(std::make_pair(beg->str(), std::string(1, (char)x)));
+            }
+        }
+
+        if (replaces.empty())
+        {
+            continue;
         }
 
         for (std::pair<std::string, std::string>& pair : replaces)
