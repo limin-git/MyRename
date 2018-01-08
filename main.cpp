@@ -5,6 +5,8 @@
 #include <boost/system/error_code.hpp>
 using namespace boost::filesystem;
 
+//Note: Google Drive will replace %XX to _XX
+
 std::vector<boost::regex> build_regexs(const std::vector<path>& folder_names)
 {
     std::vector<boost::regex> regexs;
@@ -113,14 +115,20 @@ std::vector<std::pair<path, path>> rename(const std::vector<path>& files)
 
         for (; beg != end; ++beg)
         {
-            std::string s = beg->str();
-            std::string s2 = "0x" + s.substr(1);
-            size_t x = std::stoul(s2.c_str(), nullptr, 16);
-
-            if (boost::is_print()(x))
+            try
             {
-                //std::cout << std::string(1, (char)x) << std::endl;
-                replaces.push_back(std::make_pair(beg->str(), std::string(1, (char)x)));
+                std::string s = beg->str();
+                std::string s2 = "0x" + s.substr(1);
+                size_t x = std::stoul(s2.c_str(), nullptr, 16);
+
+                if (boost::is_print()(x))
+                {
+                    //std::cout << std::string(1, (char)x) << std::endl;
+                    replaces.push_back(std::make_pair(beg->str(), std::string(1, (char)x)));
+                }
+            }
+            catch (...)
+            {
             }
         }
 
@@ -146,6 +154,8 @@ void real_rename(std::vector<std::pair<path, path>>& files)
 {
     for (std::pair<path, path>& pair : files)
     {
+        remove_attribute(pair.first.string());
+
         boost::system::error_code err;
         rename(pair.first, pair.second, err);
 
@@ -156,6 +166,27 @@ void real_rename(std::vector<std::pair<path, path>>& files)
     }
 }
 
+std::vector<std::pair<path, path>> remove_specific(path dir, const std::string& remove_tring)
+{
+    std::vector<std::pair<path, path>> result;
+    std::vector<path> files = get_files(dir);
+
+    for (path& file : files)
+    {
+        std::string filename = file.filename().string();
+
+        if (boost::contains(filename, remove_tring))
+        {
+            boost::replace_all(filename, remove_tring, "");
+            result.push_back(std::make_pair(file, file.parent_path() / filename));
+            std::cout << file.string() << " ==> " << filename << std::endl;
+        }
+    }
+
+    return result;
+}
+
+
 int _tmain(int argc, _TCHAR* argv[])
 {
     if (argc < 2)
@@ -164,6 +195,13 @@ int _tmain(int argc, _TCHAR* argv[])
                 << "Usage:\n\t"
                 << path(argv[0]).stem().string() << " <path>\n";
 
+        return 0;
+    }
+
+    if (argc == 3)
+    {
+        std::vector<std::pair<path, path>>& files = remove_specific(argv[1], argv[2]);
+        real_rename(files);
         return 0;
     }
 
